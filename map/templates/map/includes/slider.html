@@ -1,0 +1,22 @@
+{% block content %}
+<div id="mySidenav" class="sidenav">
+  <!--warstwa nagłówka menu-->
+  <div id="menu" > Menu </div>
+  <!--warstwa zawartości menu-->
+  <div id="menu_res">
+  <div><label><input id="layer1" type="checkbox" value="layer1" checked>Obiekty fortowe</label></div>
+  <div><label><input id="zwiedzanie" type="checkbox" value="">Możliwość zwiedzania</label></div>
+  <div><label><input id="query" type="checkbox" value="query" >Typ</label></div>
+  <div>
+  <select id="typ">
+    <option value="">wszystkie</option>
+    <option value="Fort">forty</option>
+    <option value="Schron">schrony</option>
+    <option value="Inne">inne obiekty</option>
+  </select>
+  <div id = route_check><label><input id="route" type="checkbox" value="">Wyznacz trasę</label></div>
+  <div id="apply_route" class = "btn btn-primary"><label>Wyznacz trasę</label></div>
+  </div>
+  </div>
+</div>
+{% endblock %}

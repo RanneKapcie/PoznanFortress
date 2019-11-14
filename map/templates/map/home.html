@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset='utf-8' />
+<title>Twierdza Poznań</title>
+  {% load staticfiles %}
+  <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+  <link rel = "stylesheet" type = "text/css" href = "{% static 'style.css' %}"/>
+
+<!--bootstrap-->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+
+<!--jQuery links -->
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+  <script src="https://code.jquery.com/jquery-1.7.1.min.js"></script>
+
+<!--leaflet links -->
+<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css" />
+<script src="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol@0.65.2/dist/L.Control.Locate.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol@0.65.2/src/L.Control.Locate.min.js" charset="utf-8"></script>
+
+<!--jquery scripts -->
+<script>
+
+//toggling sidenav menu
+ $(document).ready(function(){
+   $("#slider_button").click(function(){
+     $("#mySidenav").toggle("slide");
+     $("#slider_button").css("z-index", 1)
+   });
+ });
+
+//adding or removing layer
+ $(document).ready(function() {
+   if ($('#layer1').is(':checked')){
+    addLayer();
+  }
+ 	$('#layer1').click(function() {
+   	if ($('#layer1').is(':checked'))
+ 		addLayer();
+ 	else
+ 		if(map.hasLayer(layer1))map.removeLayer(layer1);
+ 	});
+ });
+
+//adding queried layer
+ $(document).ready(function() {
+ $('#query').click(function() {
+ 	var setButton = document.getElementById('typ');
+ 	if ($('#query').is(':checked')){
+ 		setButton.addEventListener('click',addQLayer);
+ 	}
+ 	else{
+ 		if(map.hasLayer(qlayer))map.removeLayer(qlayer);
+ 		setButton.removeEventListener('click',addQLayer);
+ }
+ });
+ });
+
+ $(document).ready(function() {
+ $('#zwiedzanie').click(function() {
+   var setButton2 = document.getElementById('zwiedzanie');
+   if ($('#zwiedzanie').is(':checked')){
+     setButton2.value="t";
+     setButton2.addEventListener('click',addQLayer);
+   }
+   else{
+     setButton2.value="";
+   }
+ });
+ });
+
+ $(document).ready(function(){
+   $('#route').click(function(){
+     if ($('#route').is(':checked')){
+       addMarker();
+     }
+   });
+ });
+
+// requesting route layer
+$(document).ready(function(){
+  $('#apply_route').click(function(){
+    addRoutingLayer();
+  });
+});
+
+// toggling description menu
+$(document).ready(function(){
+  $('.otworzOpis').click(function(){
+    $("sidebar_opisy").toggle("slide");
+  });
+});
+</script>
+
+</head>
+<body>
+
+  <div id = 'map'></div>
+
+  <!-- jinja logic for including html elements from includes folder -->
+
+  {% block content %}
+    <!-- title div -->
+    {% include "map/includes/title.html" %}
+
+    <!-- legend -->
+    {% include "map/includes/legend.html" %}
+
+    <!-- sidebar -->
+    {% include "map/includes/slider.html" %}
+
+    <!-- sidebar with descriptions -->
+    {% include "map/includes/slider_opisy.html" %}
+
+    <!-- button for opening menu -->
+    {% include "map/includes/slider_button.html" %}
+
+  {% endblock %}
+<script>
+
+//osm layer
+var osm =L.tileLayer('https://api.mapbox.com/styles/v1/rannekapcie00/cjog491fa6kfd2snvoih6pknj/tiles/{z}/{x}/{y}?access_token=pk.eyJ1IjoicmFubmVrYXBjaWUwMCIsImEiOiJjamY4MzNyM3Qyb3ZtMzFrN3ltMnNkNTJqIn0.bus9unBLrRQ4SAmFaShBMg',
+{
+  maxZoom: 17,
+  attribution: "Data by OpenStreetMap"
+});
+//creating map object
+var map = new L.map('map', {
+  center: new L.LatLng(52.400904, 16.918916),
+  zoom: 12,
+  layers: [osm],
+  zoomControl: true
+});
+
+//locator button
+var locator = L.control.locate({
+  position: 'topleft',
+  strings: {
+    title: 'Zlokalizuj'
+  }
+}).addTo(map);
+
+//scale bar
+var scale_bar = L.control.scale({
+  imperial: false,
+  position: 'bottomright',
+}).addTo(map);
+
+//array which contains coords after setting markers
+var coordinates = [];
+
+//adding new marker while clicking
+var addMarker = function(e){
+
+  map.on('click',function(e){
+    var marker = L.marker(e.latlng).addTo(map);
+    var lat = e.latlng.lat;
+    var lng = e.latlng.lng;
+    coordinates.push(lat, lng)
+  });
+}
+
+//show button that starts routing
+var routing_button = document.getElementById('route');
+routing_button.addEventListener('click', function(){
+  document.getElementById('apply_route').style.display = "block";
+});
+
+//add GeoJSON layer
+var layer1;
+function addLayer(){
+  if (map.hasLayer(layer1))map.removeLayer(layer1);
+  if(map.hasLayer(qlayer)){
+    map.removeLayer(qlayer);
+    $("#query").prop("checked",false);
+  }
+
+  typ = '';
+  zwiedzanie = '';
+$.ajax({
+	type: "GET",
+	url: "geojson?typ="+typ+"&zwiedzanie="+zwiedzanie,
+	dataType: 'json',
+	success: function (response) {
+  	layer1 = L.geoJson(response, {
+  		style: function (feature) {
+  		return {color: "blue",fillColor: "blue",weight: 2};
+  		},
+  		onEachFeature: function (feature, layer) {
+      var feat_zwiedzanie;
+      var feat_otwarty;
+
+      if (feature.properties.zwiedzanie == 't'){
+        feat_zwiedzanie = 'Możliwość zwiedzania z przewodnikiem'
+      }else{
+        feat_zwiedzanie = 'Zwiedzanie z przewodnikiem niedostępne'
+      }
+      if (feature.properties.otwarty == 't'){
+        feat_otwarty = 'Otwarty dla turystów'
+      }else{
+        feat_otwarty = 'Zamknięty dla turystów'
+      }
+      nazwa_obiektu = feature.properties.nazwa;
+  		var html = "<strong>" +feature.properties.nazwa+ "</strong><br />"+ "Typ obiektu: " + feature.properties.typ+"<br />"+ feat_zwiedzanie + "<br />" + feat_otwarty + "<br />" + "<div class=\"otworzOpis\"><a href=\"#" + nazwa_obiektu + "\"> Opis " + nazwa_obiektu +"</a></div>"
+  		layer.bindPopup(html);
+  		}
+  		}).addTo(map);
+  		}
+		});
+}
+
+
+var qlayer;
+function addQLayer(){
+  if(map.hasLayer(layer1)){
+    map.removeLayer(layer1);
+    $("#layer1").prop("checked",false);
+  }
+  if(map.hasLayer(qlayer))map.removeLayer(qlayer);
+  typ=$("#typ").val();
+  zwiedzanie=$("#zwiedzanie").val();
+
+
+    $.ajax({
+    	type: "GET",
+    	url: "geojson?typ="+typ+"&zwiedzanie="+zwiedzanie,
+    	dataType: 'json',
+    	success: function (response) {
+      	qlayer = L.geoJson(response, {
+      		style: function (feature) {
+      		return {color: "blue",fillColor: "blue",weight: 2};
+      		},
+      		onEachFeature: function (feature, layer) {
+            var feat_zwiedzanie;
+            var feat_otwarty;
+
+            if (feature.properties.zwiedzanie == 't'){
+              feat_zwiedzanie = 'Możliwość zwiedzania z przewodnikiem'
+            }else{
+              feat_zwiedzanie = 'Zwiedzanie z przewodnikiem niedostępne'
+            }
+            if (feature.properties.otwarty == 't'){
+              feat_otwarty = 'Otwarty dla turystów'
+            }else{
+              feat_otwarty = 'Zamknięty dla turystów'
+            }
+            nazwa_obiektu = feature.properties.nazwa;
+            var html = "<strong>" +feature.properties.nazwa+ "</strong><br />"+ "Typ obiektu: " + feature.properties.typ+"<br />"+ feat_zwiedzanie + "<br />" + feat_otwarty + "<br />" + "<div class=\"otworzOpis\"><a href=\"#" + nazwa_obiektu + "\"> Opis " + nazwa_obiektu +"</a></div>"
+      		layer.bindPopup(html);
+      		}
+    		}).addTo(map);
+  		}
+  });
+}
+
+//adding routing layer
+function addRoutingLayer(){
+    $.ajax({
+    	type: "GET",
+    	url: "map/directions/"+coordinates[1]+ ',' + coordinates[0] + '&' + coordinates[3] + ',' + coordinates[2],
+    	dataType: 'json',
+    	success: function (response) {
+        var length = 0;
+      	route_layer = L.geoJson(response, {
+      		style: function (feature) {
+      		return {color: "blue",weight: 2, opacity:.8};
+      		},
+          onEachFeature: function (feature, layer) {
+            var coordinates = feature.geometry.coordinates;
+            var start_coords = coordinates[0];
+            var end_coords = coordinates[coordinates.length-1];
+
+            length += L.latLng(start_coords).distanceTo(end_coords);
+
+            var html = "<strong>Odległość do pokonania (m):" + length.toPrecision(4) + "</strong>"
+            layer.bindPopup(html);
+      		},
+    		}).addTo(map);
+  		}
+  });
+}
+
+
+</script>
+</body>
+</html>
